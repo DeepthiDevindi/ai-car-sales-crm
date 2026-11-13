@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import './App.css'
 
 type View = 'Dashboard' | 'Leads' | 'Inventory' | 'Inbox' | 'Appointments' | 'Analytics' | 'Settings'
@@ -251,6 +251,7 @@ function Badge({ children, tone }: { children: ReactNode; tone: string }) {
 function App() {
   const [activeView, setActiveView] = useState<View>('Dashboard')
   const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [range, setRange] = useState('Last 30 days')
   const [leads, setLeads] = useState(initialLeads)
   const [leadFilter, setLeadFilter] = useState<'All' | LeadTemperature>('All')
@@ -262,6 +263,23 @@ function App() {
   const [toast, setToast] = useState('')
   const selectedChat = conversations.find((conversation) => conversation.id === selectedConversation) ?? conversations[0]
   const currentChart = chartData[range]
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        searchInputRef.current?.focus()
+      }
+
+      if (event.key === 'Escape') {
+        setModalOpen(false)
+        setMobileMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
   const filteredLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return leads.filter((lead) => {
@@ -421,8 +439,8 @@ function App() {
           <div className="topbar-actions">
             <label className="global-search">
               <Icon name="search" size={17} />
-              <input aria-label="Search leads and vehicles" placeholder="Search anything..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
-              <kbd>⌘ K</kbd>
+              <input ref={searchInputRef} aria-label="Search leads and vehicles" placeholder="Search anything..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
+              <kbd>Ctrl K</kbd>
             </label>
             <button className="icon-button notification-button" aria-label="Notifications" onClick={() => showToast('You’re all caught up on notifications.')}>
               <Icon name="bell" size={19} /><i />
