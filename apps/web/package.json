@@ -1,0 +1,30 @@
+{
+  "name": "@ai-car-sales-crm/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "build": "next build",
+    "start": "next start --hostname 0.0.0.0 --port 3000",
+    "lint": "oxlint . --tsconfig tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@ai-car-sales-crm/shared-types": "workspace:*",
+    "next": "15.3.5",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.1",
+    "@testing-library/react": "^16.0.1",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^26.0.0",
+    "oxlint": "^1.90.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}
