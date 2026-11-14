@@ -1,5 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import { HealthResponse } from '@ai-car-sales-crm/shared-types';
+import type { HealthResponse } from '@ai-car-sales-crm/shared-types' with {
+  'resolution-mode': 'import',
+};
 import { DatabaseHealthService } from './database-health.service.js';
 import { RedisHealthService } from './redis-health.service.js';
 

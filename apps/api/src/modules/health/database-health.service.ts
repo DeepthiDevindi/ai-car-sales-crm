@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { Pool } from 'pg';
-import { ServiceStatus } from '@ai-car-sales-crm/shared-types';
+import type { ServiceStatus } from '@ai-car-sales-crm/shared-types' with {
+  'resolution-mode': 'import',
+};
 
 @Injectable()
 export class DatabaseHealthService implements OnModuleDestroy {

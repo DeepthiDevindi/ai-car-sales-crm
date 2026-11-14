@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
-import { ServiceStatus } from '@ai-car-sales-crm/shared-types';
+import type { ServiceStatus } from '@ai-car-sales-crm/shared-types' with {
+  'resolution-mode': 'import',
+};
 
 @Injectable()
 export class RedisHealthService implements OnModuleDestroy {
