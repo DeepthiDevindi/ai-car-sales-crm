@@ -9,6 +9,7 @@
     "lint": "oxlint . --tsconfig tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
+    "test:integration": "vitest run src/modules/tenancy/tenant-scoped-crm.integration.spec.ts",
     "prisma": "prisma",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --name init"

@@ -26,6 +26,18 @@ The project uses Docker Compose for local PostgreSQL and Redis infrastructure. P
 - Backend health endpoint: `GET http://localhost:4000/api/v1/health`
 - Expected result: `status: "ok"` when PostgreSQL and Redis are reachable.
 
+## Database validation
+
+- Database model and relationship notes: [database schema](docs/architecture/database-schema.md) and [database relationships](docs/architecture/database-relationships.md).
+- Tenant boundary rules: [tenant isolation](docs/architecture/tenant-isolation.md).
+- PostgreSQL integration tests use synthetic records and are disabled by default. With local PostgreSQL running and `apps/api/.env` configured, enable them in PowerShell with:
+
+```powershell
+$env:RUN_DB_INTEGRATION_TESTS = '1'
+pnpm --dir apps/api test:integration
+Remove-Item Env:\RUN_DB_INTEGRATION_TESTS
+```
+
 ## Available scripts
 
 - `pnpm dev` — start the API and web frontend together.

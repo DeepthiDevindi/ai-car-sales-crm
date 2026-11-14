@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import appConfig from './config/app.config.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+import { TenancyModule } from './modules/tenancy/tenancy.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
@@ -10,6 +12,8 @@ import { HealthModule } from './modules/health/health.module.js';
       load: [appConfig],
       envFilePath: ['.env', '.env.local'],
     }),
+    PrismaModule,
+    TenancyModule,
     HealthModule,
   ],
 })
