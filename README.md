@@ -14,6 +14,12 @@ pnpm dev
 
 The project uses Docker Compose for local PostgreSQL and Redis infrastructure. PostgreSQL is bound to `127.0.0.1:55432` to avoid the existing Windows service conflict on port 5432.
 
+## Authentication foundation
+
+The Day 4 authentication implementation provides local password sign-in, session cookies, email verification/password reset, TOTP MFA, and dealership-scoped staff APIs. Public registration and initial administrator bootstrap are intentionally disabled. Verification, reset, and invitation emails are not delivered; the development-only sink logs links locally and captures them in memory during tests, while production email operations fail closed.
+
+Configure `AUTH_MFA_ENCRYPTION_KEY` in the local API `.env` before exercising MFA. Use a randomly generated, base64-encoded 32-byte key; never put the actual key in source control. Production use is blocked pending an approved identity/onboarding policy, real email provider, role/permission provisioning, MFA recovery process, and the missing SRS/SAD requirements. See [authentication and RBAC](docs/architecture/authentication-and-rbac.md), [session management](docs/architecture/session-management.md), and the [authentication API contract](docs/api/authentication.md).
+
 ## Local infrastructure
 
 - PostgreSQL: `127.0.0.1:55432` -> container `5432`

@@ -1,3 +1,21 @@
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+function safeErrorMessage(status: number): string {
+  if (status === 401) return 'Authentication is required.';
+  if (status === 403) return 'You are not authorized to perform this action.';
+  if (status === 429) return 'Too many requests. Try again later.';
+  if (status >= 500) return 'The service is temporarily unavailable.';
+  return 'The request could not be completed.';
+}
+
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api/v1';
   const controller = new AbortController();
@@ -13,13 +31,13 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
 
     const response = await fetch(`${baseUrl}${path}`, {
       ...init,
+      credentials: init?.credentials ?? 'include',
       signal: controller.signal,
       headers,
     });
 
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(body || `Request failed with status ${response.status}`);
+      throw new ApiError(response.status, safeErrorMessage(response.status));
     }
 
     const contentType = response.headers.get('content-type') ?? '';

@@ -81,10 +81,29 @@ enum AuditAction {
   UPDATE
   DELETE
   LOGIN
+  LOGIN_FAILED
   LOGOUT
+  PASSWORD_RESET
+  MFA_CHANGE
+  SESSION_REVOKE
+  MEMBERSHIP_INVITE
+  MEMBERSHIP_ACTIVATE
+  MEMBERSHIP_DEACTIVATE
+  ROLE_ASSIGN
   EXPORT
   IMPORT
   SYNC
+}
+
+enum AuthTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum AuthSessionStage {
+  MFA_SETUP
+  MFA_CHALLENGE
+  ACTIVE
 }
 
 model Dealership {
@@ -97,6 +116,7 @@ model Dealership {
 
   branches                  Branch[]
   memberships               DealershipMembership[]
+  employeeInvitations       EmployeeInvitation[]
   roles                     Role[]                     @relation("DealershipRoles")
   settings                  DealershipSettings?
   customers                 Customer[]
@@ -135,8 +155,9 @@ model Branch {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  dealership  Dealership             @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
-  memberships DealershipMembership[]
+  dealership          Dealership             @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  memberships         DealershipMembership[]
+  employeeInvitations EmployeeInvitation[]
 
   @@unique([dealershipId, id])
   @@unique([dealershipId, code])
@@ -144,23 +165,80 @@ model Branch {
 }
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  email        String     @unique
-  passwordHash String?
-  firstName    String?
-  lastName     String?
-  status       UserStatus @default(INVITED)
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                 String     @id @default(uuid()) @db.Uuid
+  email              String     @unique
+  passwordHash       String?
+  firstName          String?
+  lastName           String?
+  status             UserStatus @default(INVITED)
+  emailVerifiedAt    DateTime?
+  mfaEnabled         Boolean    @default(false)
+  mfaSecretEncrypted String?    @db.Text
+  mfaLastCounter     BigInt?
+  lastLoginAt        DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   memberships     DealershipMembership[]
   platformRoles   UserRole[]
   leadAssignments LeadAssignment[]
   leadActivities  LeadActivity[]
   auditLogs       AuditLog[]
+  authSessions    AuthSession[]
+  authTokens      AuthToken[]
 
   @@index([status])
+}
+
+model AuthSession {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @db.Uuid
+  tokenHash  String           @unique @db.Char(64)
+  stage      AuthSessionStage @default(ACTIVE)
+  expiresAt  DateTime
+  lastSeenAt DateTime         @default(now())
+  createdAt  DateTime         @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model AuthToken {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @db.Uuid
+  tokenHash  String           @unique @db.Char(64)
+  purpose    AuthTokenPurpose
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, expiresAt])
+}
+
+model EmployeeInvitation {
+  id                    String    @id @default(uuid()) @db.Uuid
+  dealershipId          String    @db.Uuid
+  invitedByMembershipId String    @db.Uuid
+  roleId                String    @db.Uuid
+  branchId              String?   @db.Uuid
+  email                 String
+  tokenHash             String    @unique @db.Char(64)
+  expiresAt             DateTime
+  acceptedAt            DateTime?
+  createdAt             DateTime  @default(now())
+
+  dealership Dealership           @relation(fields: [dealershipId], references: [id], onDelete: Cascade)
+  invitedBy  DealershipMembership @relation("MembershipInviter", fields: [dealershipId, invitedByMembershipId], references: [dealershipId, id], onDelete: Restrict)
+  role       Role                 @relation(fields: [dealershipId, roleId], references: [dealershipId, id], onDelete: Restrict)
+  branch     Branch?              @relation(fields: [dealershipId, branchId], references: [dealershipId, id], onDelete: Restrict)
+
+  @@index([dealershipId, email, acceptedAt])
+  @@index([expiresAt])
 }
 
 model DealershipMembership {
@@ -174,13 +252,14 @@ model DealershipMembership {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @default(now()) @updatedAt
 
-  user               User             @relation(fields: [userId], references: [id], onDelete: Restrict)
-  dealership         Dealership       @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
-  branch             Branch?          @relation(fields: [dealershipId, branchId], references: [dealershipId, id], onDelete: Restrict)
-  roles              MembershipRole[] @relation("MembershipRoleAssignments")
-  leadAssignments    LeadAssignment[] @relation("AssignedMembership")
-  assignmentsCreated LeadAssignment[] @relation("AssigningMembership")
-  leadActivities     LeadActivity[]   @relation("ActivityMembership")
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  dealership         Dealership           @relation(fields: [dealershipId], references: [id], onDelete: Restrict)
+  branch             Branch?              @relation(fields: [dealershipId, branchId], references: [dealershipId, id], onDelete: Restrict)
+  roles              MembershipRole[]     @relation("MembershipRoleAssignments")
+  leadAssignments    LeadAssignment[]     @relation("AssignedMembership")
+  assignmentsCreated LeadAssignment[]     @relation("AssigningMembership")
+  leadActivities     LeadActivity[]       @relation("ActivityMembership")
+  invitationsCreated EmployeeInvitation[] @relation("MembershipInviter")
 
   @@unique([userId, dealershipId])
   @@unique([dealershipId, id])
@@ -196,14 +275,16 @@ model Role {
   name         String
   key          String
   scope        RoleScope @default(DEALERSHIP)
+  requiresMfa  Boolean   @default(false)
   description  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  dealership    Dealership?      @relation("DealershipRoles", fields: [dealershipId], references: [id], onDelete: Restrict)
+  dealership    Dealership?          @relation("DealershipRoles", fields: [dealershipId], references: [id], onDelete: Restrict)
   permissions   RolePermission[]
-  memberships   MembershipRole[] @relation("DealershipRoleAssignments")
-  platformUsers UserRole[]       @relation("PlatformRoleAssignments")
+  memberships   MembershipRole[]     @relation("DealershipRoleAssignments")
+  platformUsers UserRole[]           @relation("PlatformRoleAssignments")
+  invitations   EmployeeInvitation[]
 
   @@unique([dealershipId, key])
   @@unique([dealershipId, id])
