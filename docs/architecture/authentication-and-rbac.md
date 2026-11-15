@@ -42,7 +42,7 @@ Staff invitation, deactivation, role/branch change, session revocation, login, l
 
 ## Email and onboarding limitation
 
-There is no production email provider. In development, verification, reset, and invitation links are written to the API log with an explicit “not delivered” warning; tests capture links in memory. Production email operations fail closed. Do not enable production onboarding until a provider, verified sender/domain, delivery monitoring, and abuse policy are configured.
+There is no production email provider. In development, verification, reset, and invitation messages produce only an explicit “not delivered” API warning; token links are never logged. Tests capture links in memory. Production email operations fail closed. Do not enable production onboarding until a provider, verified sender/domain, delivery monitoring, and abuse policy are configured.
 
 An invitation can create a new account only; invitations to an existing account are rejected. There is no public registration, initial-admin seed, role bootstrap, account merge, or MFA recovery path.
 

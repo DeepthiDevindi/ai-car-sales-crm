@@ -107,12 +107,21 @@ enum AuthSessionStage {
 }
 
 model Dealership {
-  id        String           @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String           @unique
-  status    DealershipStatus @default(ACTIVE)
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String
+  slug         String           @unique
+  contactEmail String?
+  contactPhone String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String?
+  openingHours Json?
+  status       DealershipStatus @default(ACTIVE)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
   branches                  Branch[]
   memberships               DealershipMembership[]
@@ -230,6 +239,7 @@ model EmployeeInvitation {
   tokenHash             String    @unique @db.Char(64)
   expiresAt             DateTime
   acceptedAt            DateTime?
+  revokedAt             DateTime?
   createdAt             DateTime  @default(now())
 
   dealership Dealership           @relation(fields: [dealershipId], references: [id], onDelete: Cascade)
@@ -238,6 +248,7 @@ model EmployeeInvitation {
   branch     Branch?              @relation(fields: [dealershipId, branchId], references: [dealershipId, id], onDelete: Restrict)
 
   @@index([dealershipId, email, acceptedAt])
+  @@index([dealershipId, revokedAt, expiresAt])
   @@index([expiresAt])
 }
 
@@ -247,6 +258,7 @@ model DealershipMembership {
   dealershipId String           @db.Uuid
   branchId     String?          @db.Uuid
   isPrimary    Boolean          @default(false)
+  availability Json?
   status       MembershipStatus @default(INVITED)
   joinedAt     DateTime         @default(now())
   createdAt    DateTime         @default(now())

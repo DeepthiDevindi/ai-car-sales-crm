@@ -1,9 +1,19 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  renderAuthEmailTemplate,
+  type AuthEmailKind,
+} from './auth-email-templates.js';
 
 @Injectable()
 export class AuthEmailService {
   private readonly logger = new Logger(AuthEmailService.name);
-  private readonly testMessages: Array<{ kind: string; link: string }> = [];
+  private readonly testMessages: Array<{
+    kind: AuthEmailKind;
+    link: string;
+    subject: string;
+    text: string;
+    html: string;
+  }> = [];
 
   async sendVerification(email: string, token: string): Promise<void> {
     await this.sendLink(email, token, 'verify-email', 'email verification');
@@ -25,7 +35,13 @@ export class AuthEmailService {
     }
   }
 
-  getTestMessages(): ReadonlyArray<{ kind: string; link: string }> {
+  getTestMessages(): ReadonlyArray<{
+    kind: AuthEmailKind;
+    link: string;
+    subject: string;
+    text: string;
+    html: string;
+  }> {
     if (process.env.NODE_ENV !== 'test') {
       throw new ServiceUnavailableException('Test email messages are unavailable.');
     }
@@ -36,7 +52,7 @@ export class AuthEmailService {
     email: string,
     token: string,
     route: string,
-    kind: string,
+    kind: AuthEmailKind,
   ): Promise<void> {
     const environment = process.env.NODE_ENV ?? 'development';
     this.assertDeliveryAvailable();
@@ -45,16 +61,18 @@ export class AuthEmailService {
       process.env.AUTH_WEB_BASE_URL ??
       process.env.CORS_ORIGIN?.split(',')[0]?.trim() ??
       'http://localhost:3000';
-    const link = new URL(`/${route}`, origin);
-    link.searchParams.set('token', token);
+    const url = new URL(`/${route}`, origin);
+    url.searchParams.set('token', token);
+    const link = url.toString();
+    const template = renderAuthEmailTemplate(kind, link);
 
     if (environment === 'test') {
-      this.testMessages.push({ kind, link: link.toString() });
+      this.testMessages.push({ kind, link, ...template });
       return;
     }
 
     this.logger.warn(
-      `Development email sink only; ${kind} message was not delivered. Link: ${link.toString()}`,
+      `Development email sink only; ${kind} message was not delivered.`,
     );
   }
 }

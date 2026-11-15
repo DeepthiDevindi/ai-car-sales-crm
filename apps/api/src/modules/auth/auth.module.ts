@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AuthController } from './auth.controller.js';
-import { StaffController } from './staff.controller.js';
 import { AuthService } from './auth.service.js';
 import { AuthSessionGuard } from './guards/auth-session.guard.js';
 import { CsrfGuard } from './guards/csrf.guard.js';
@@ -16,7 +15,7 @@ import { StaffService } from './services/staff.service.js';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [AuthController, StaffController],
+  controllers: [AuthController],
   providers: [
     AuthService,
     AuthSessionGuard,
@@ -36,6 +35,7 @@ import { StaffService } from './services/staff.service.js';
     CsrfGuard,
     PermissionsGuard,
     TenantContextGuard,
+    StaffService,
   ],
 })
 export class AuthModule {}

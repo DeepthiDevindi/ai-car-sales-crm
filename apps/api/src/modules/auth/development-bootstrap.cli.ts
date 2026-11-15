@@ -2,7 +2,12 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { createLocalDevelopmentAccount, assertLocalDevelopmentEnvironment } from './development-bootstrap.service.js';
+import {
+  assertLocalDevelopmentEnvironment,
+  createLocalDevelopmentAccount,
+  getLocalDevelopmentAdminConfirmation,
+  promoteLocalDevelopmentAdmin,
+} from './development-bootstrap.service.js';
 import { PasswordService } from './services/password.service.js';
 
 const CONFIRMATION_PHRASE = 'CREATE LOCAL TEST ACCOUNT';
@@ -70,11 +75,15 @@ async function promptHidden(label: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  if (
-    process.argv.length !== 3 ||
-    process.argv[2] !== '--confirm-local-development'
-  ) {
-    throw new Error('Run this command only with --confirm-local-development.');
+  const args = process.argv.slice(2);
+  const promoteAdmin = args.includes('--promote-dealer-admin');
+  const validArguments = promoteAdmin
+    ? args.length === 2 &&
+      args.includes('--confirm-local-development') &&
+      args.includes('--promote-dealer-admin')
+    : args.length === 1 && args[0] === '--confirm-local-development';
+  if (!validArguments) {
+    throw new Error('Run the documented local bootstrap command with its required confirmation flags.');
   }
 
   loadLocalEnvironment();
@@ -83,14 +92,33 @@ async function main(): Promise<void> {
     throw new Error('Set DEV_BOOTSTRAP_EMAIL_ALLOWLIST in apps/api/.env before running bootstrap.');
   }
 
-  const confirmation = await promptText(
-    `Type "${CONFIRMATION_PHRASE}" to seed a local dealership, restricted staff role, and account: `,
-  );
-  if (confirmation !== CONFIRMATION_PHRASE) {
+  const confirmationPhrase = promoteAdmin
+    ? getLocalDevelopmentAdminConfirmation()
+    : CONFIRMATION_PHRASE;
+  const confirmation = await promptText(`Type "${confirmationPhrase}" to continue: `);
+  if (confirmation !== confirmationPhrase) {
     throw new Error('The confirmation phrase did not match; no account was created.');
   }
 
   const email = await promptText('Authorized sign-in email: ');
+  if (promoteAdmin) {
+    const prisma = new PrismaService();
+    try {
+      await prisma.$connect();
+      await promoteLocalDevelopmentAdmin(prisma, {
+        nodeEnv: process.env.NODE_ENV,
+        databaseUrl: process.env.DATABASE_URL,
+        allowlist: process.env.DEV_BOOTSTRAP_EMAIL_ALLOWLIST,
+        email,
+        confirmed: true,
+      });
+      console.log('Local Dealer Administrator role provisioned. MFA is required on next sign-in.');
+    } finally {
+      await prisma.$disconnect();
+    }
+    return;
+  }
+
   const password = await promptHidden('New password (hidden): ');
   const repeatedPassword = await promptHidden('Repeat password (hidden): ');
   if (password !== repeatedPassword) {

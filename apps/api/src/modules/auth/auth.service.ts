@@ -174,9 +174,22 @@ export class AuthService {
       where: { userId: auth.user.id, status: MembershipStatus.ACTIVE },
       include: {
         dealership: { select: { id: true, name: true, slug: true, status: true } },
-        roles: { include: { role: { select: { id: true, key: true, name: true } } } },
+        roles: {
+          include: {
+            role: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                permissions: {
+                  select: { permission: { select: { key: true } } },
+                },
+              },
+            },
+          },
+        },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ isPrimary: 'desc' }, { createdAt: 'asc' }],
     });
 
     return {
@@ -188,12 +201,25 @@ export class AuthService {
       },
       memberships: memberships
         .filter(({ dealership }) => dealership.status === 'ACTIVE')
-        .map(({ id, dealershipId, branchId, roles, dealership }) => ({
+        .map(({ id, dealershipId, branchId, isPrimary, roles, dealership }) => ({
           id,
           dealershipId,
           dealershipName: dealership.name,
           branchId,
-          roles: roles.map(({ role }) => ({ id: role.id, key: role.key, name: role.name })),
+          isPrimary,
+          roles: roles.map(({ role }) => ({
+            id: role.id,
+            key: role.key,
+            name: role.name,
+            permissions: role.permissions.map(({ permission }) => permission.key),
+          })),
+          permissions: [
+            ...new Set(
+              roles.flatMap(({ role }) =>
+                role.permissions.map(({ permission }) => permission.key),
+              ),
+            ),
+          ],
         })),
       csrfToken: this.csrfToken(auth.rawToken, auth.session.id),
     };

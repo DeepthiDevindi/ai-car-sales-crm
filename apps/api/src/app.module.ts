@@ -5,6 +5,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { TenancyModule } from './modules/tenancy/tenancy.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { DealersModule } from './modules/dealers/dealers.module.js';
+import { BranchesModule } from './modules/branches/branches.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { AuthModule } from './modules/auth/auth.module.js';
     TenancyModule,
     HealthModule,
     AuthModule,
+    DealersModule,
+    BranchesModule,
+    UsersModule,
   ],
 })
 export class AppModule {}

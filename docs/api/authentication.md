@@ -42,6 +42,6 @@ Assigning an MFA-required or privileged role also requires the provisional `staf
 - Login, verification/reset requests, token consumption, invitation acceptance, MFA setup, and MFA challenge validate the browser origin against `CORS_ORIGIN`.
 - CORS credentials are enabled only for configured origins. Allowed custom headers include `X-CSRF-Token` and `X-Dealership-Id`.
 - Invalid credentials use a generic unauthorized response. Rate limiting returns 429; a Redis outage returns 503.
-- Verification, reset, and invitation email links are only captured by the test sink or logged by the development sink. A real production mail adapter is a prerequisite for production use.
+- Verification, reset, and invitation email links are only captured in memory by the test sink. The development sink logs a not-delivered warning without logging tokens. A real production mail adapter is a prerequisite for production use.
 
 The SRS/SAD and exact authentication requirement identifiers are absent. This contract records current code behavior and must not be treated as final product approval.

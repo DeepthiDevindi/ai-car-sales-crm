@@ -82,9 +82,11 @@ describe('TenantContextGuard', () => {
     findFirst.mockResolvedValueOnce({
       id: 'membership-a',
       dealershipId: 'dealership-a',
+      branchId: 'branch-a',
       roles: [
         {
           role: {
+            key: 'SALES_MANAGER',
             permissions: [
               { permission: { key: 'staff.read' } },
               { permission: { key: 'staff.read' } },
@@ -99,6 +101,8 @@ describe('TenantContextGuard', () => {
       dealershipId: 'dealership-a',
       membership: expect.objectContaining({ id: 'membership-a' }),
       permissions: ['staff.read'],
+      roleKeys: ['SALES_MANAGER'],
+      branchId: 'branch-a',
     });
   });
 });

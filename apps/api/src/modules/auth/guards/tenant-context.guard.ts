@@ -52,6 +52,8 @@ export class TenantContextGuard implements CanActivate {
     request.tenant = {
       dealershipId,
       membership,
+      roleKeys: [...new Set(membership.roles.map(({ role }) => role.key))],
+      branchId: membership.branchId,
       permissions: [
         ...new Set(
           membership.roles.flatMap(({ role }) =>

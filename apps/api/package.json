@@ -11,6 +11,7 @@
     "test": "vitest run --passWithNoTests",
     "test:integration": "vitest run src/modules/tenancy/tenant-scoped-crm.integration.spec.ts src/modules/auth/auth.integration.spec.ts",
     "auth:bootstrap:local": "tsx src/modules/auth/development-bootstrap.cli.ts --confirm-local-development",
+    "auth:bootstrap:dealer-admin": "tsx src/modules/auth/development-bootstrap.cli.ts --confirm-local-development --promote-dealer-admin",
     "prisma": "prisma",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --name init"

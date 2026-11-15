@@ -330,6 +330,253 @@ h1 {
   gap: 8px;
 }
 
+.dashboard-shell {
+  display: block;
+}
+
+.dashboard-card {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+}
+
+.dashboard-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-tab,
+.table-action {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--text);
+  padding: 9px 13px;
+  cursor: pointer;
+}
+
+.dashboard-tab.active {
+  border-color: rgba(125, 211, 252, 0.55);
+  background: rgba(14, 165, 233, 0.2);
+}
+
+.dashboard-tab:focus-visible,
+.table-action:focus-visible,
+.admin-form input:focus-visible,
+.admin-form select:focus-visible {
+  outline: 2px solid var(--neutral);
+  outline-offset: 2px;
+}
+
+.dashboard-section {
+  display: grid;
+  gap: 18px;
+}
+
+.dashboard-section h2 {
+  margin: 0;
+}
+
+.dashboard-summary,
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.dashboard-summary article,
+.role-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-soft);
+  padding: 16px;
+}
+
+.dashboard-summary span {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
+.dashboard-summary strong {
+  font-size: 1.8rem;
+}
+
+.dashboard-notice,
+.dashboard-error {
+  margin: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.dashboard-notice {
+  color: var(--success);
+  background: rgba(52, 211, 153, 0.08);
+}
+
+.dashboard-error {
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.admin-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea,
+.availability-form textarea,
+.table-wrap td select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #080f1d;
+  color: var(--text);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.admin-form button {
+  align-self: end;
+}
+
+.admin-form textarea {
+  resize: vertical;
+  font: 12px/1.5 Consolas, monospace;
+}
+
+.admin-form .wide-field {
+  grid-column: 1 / -1;
+}
+
+.availability-form {
+  display: grid;
+  min-width: 240px;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.availability-form label,
+.availability-form small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.availability-form textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  resize: vertical;
+  font: 12px/1.5 Consolas, monospace;
+}
+
+.compact-form {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-title span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table-wrap th,
+.table-wrap td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table-wrap th {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.table-wrap tr:last-child td {
+  border-bottom: 0;
+}
+
+.table-action {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.table-action:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.danger-action {
+  color: #fecaca;
+}
+
+.table-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.role-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.role-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.role-card p,
+.role-card li {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.role-card ul {
+  margin-bottom: 0;
+  padding-left: 18px;
+}
+
 @media (max-width: 720px) {
   .page-card {
     padding: 18px;
@@ -350,6 +597,10 @@ h1 {
 
   .dashboard-hero {
     flex-direction: column;
+  }
+
+  .dashboard-card {
+    padding: 18px;
   }
 
   .logout-control {

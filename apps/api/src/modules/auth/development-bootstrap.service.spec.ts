@@ -4,6 +4,7 @@ import { PasswordService } from './services/password.service.js';
 import {
   assertLocalDevelopmentEnvironment,
   createLocalDevelopmentAccount,
+  promoteLocalDevelopmentAdmin,
   type DevelopmentBootstrapRequest,
 } from './development-bootstrap.service.js';
 
@@ -64,6 +65,39 @@ describe('local development account bootstrap', () => {
       createLocalDevelopmentAccount(prisma, passwords, baseRequest),
     ).rejects.toThrow(/already belongs/);
     expect(transaction.user.findFirst).toHaveBeenCalledOnce();
+  });
+
+  it('requires local environment, explicit confirmation, and allowlisted identity for admin promotion', async () => {
+    const prisma = { $transaction: vi.fn() } as unknown as PrismaService;
+
+    await expect(
+      promoteLocalDevelopmentAdmin(prisma, {
+        nodeEnv: 'production',
+        databaseUrl: baseRequest.databaseUrl,
+        allowlist: baseRequest.allowlist,
+        email: baseRequest.email,
+        confirmed: true,
+      }),
+    ).rejects.toThrow(/development or test/);
+    await expect(
+      promoteLocalDevelopmentAdmin(prisma, {
+        nodeEnv: 'development',
+        databaseUrl: baseRequest.databaseUrl,
+        allowlist: baseRequest.allowlist,
+        email: baseRequest.email,
+        confirmed: false,
+      }),
+    ).rejects.toThrow(/confirmation/);
+    await expect(
+      promoteLocalDevelopmentAdmin(prisma, {
+        nodeEnv: 'development',
+        databaseUrl: baseRequest.databaseUrl,
+        allowlist: baseRequest.allowlist,
+        email: 'other@example.test',
+        confirmed: true,
+      }),
+    ).rejects.toThrow(/DEV_BOOTSTRAP_EMAIL_ALLOWLIST/);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('creates only a verified user with an unprivileged tenant-scoped role', async () => {

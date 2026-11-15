@@ -11,5 +11,7 @@ export interface AuthenticatedRequest extends Request {
     dealershipId: string;
     membership: DealershipMembership;
     permissions: string[];
+    roleKeys: string[];
+    branchId: string | null;
   };
 }

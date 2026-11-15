@@ -1,5 +1,5 @@
-import { ServiceUnavailableException } from '@nestjs/common';
-import { afterEach, describe, expect, it } from 'vitest';
+import { Logger, ServiceUnavailableException } from '@nestjs/common';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthEmailService } from './auth-email.service.js';
 
 const originalNodeEnv = process.env.NODE_ENV;
@@ -21,6 +21,19 @@ describe('AuthEmailService', () => {
 
     expect(service.getTestMessages()).toHaveLength(1);
     expect(service.getTestMessages()[0].link).toContain('token=synthetic-token');
+  });
+
+  it('does not log verification tokens in the development sink', async () => {
+    process.env.NODE_ENV = 'development';
+    const warning = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const service = new AuthEmailService();
+
+    await service.sendVerification('staff@example.test', 'synthetic-token');
+
+    expect(warning).toHaveBeenCalledOnce();
+    expect(warning.mock.calls[0][0]).not.toContain('synthetic-token');
+    expect(warning.mock.calls[0][0]).not.toContain('token=');
+    warning.mockRestore();
   });
 
   it.each(['production', undefined])('fails closed outside development and tests (%s)', async (nodeEnv) => {

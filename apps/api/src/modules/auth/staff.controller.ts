@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Inject,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
   Put,
   Req,
   UseGuards,
@@ -24,6 +26,25 @@ import {
   CreateInvitationDto,
 } from './dto/auth.dto.js';
 import { authBodyPipe } from './dto/auth-body.pipe.js';
+import {
+  InvitationListQueryDto,
+  StaffListQueryDto,
+  UpdateEmployeeDto,
+} from '../users/dto/users.dto.js';
+
+function staffBranchScope(request: AuthenticatedRequest): string | undefined {
+  const tenant = request.tenant!;
+  if (
+    tenant.roleKeys.includes('SALES_MANAGER') &&
+    !tenant.roleKeys.includes('DEALER_ADMIN')
+  ) {
+    if (!tenant.branchId) {
+      throw new ForbiddenException('A branch assignment is required for this role.');
+    }
+    return tenant.branchId;
+  }
+  return undefined;
+}
 
 @Controller('users')
 @UseGuards(AuthSessionGuard, CsrfGuard, TenantContextGuard, PermissionsGuard)
@@ -32,8 +53,32 @@ export class StaffController {
 
   @Get('staff')
   @RequirePermissions('staff.read')
-  listStaff(@Req() request: AuthenticatedRequest) {
-    return this.staff.listStaff(request.tenant!.dealershipId);
+  listStaff(
+    @Query(authBodyPipe(StaffListQueryDto)) query: StaffListQueryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.listStaff(
+      request.tenant!.dealershipId,
+      staffBranchScope(request),
+      query.page,
+      query.pageSize,
+      query.search,
+    );
+  }
+
+  @Get('roles')
+  @RequirePermissions('roles.read')
+  listRoles(@Req() request: AuthenticatedRequest) {
+    return this.staff.listRoles(request.tenant!.dealershipId);
+  }
+
+  @Get('staff/invitations')
+  @RequirePermissions('invitations.read')
+  listInvitations(
+    @Query(authBodyPipe(InvitationListQueryDto)) query: InvitationListQueryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.listInvitations(request.tenant!.dealershipId, query.status);
   }
 
   @Post('staff/invitations')
@@ -56,18 +101,85 @@ export class StaffController {
     );
   }
 
+  @Post('staff/invitations/:invitationId/resend')
+  @RequirePermissions('invitations.manage')
+  resendInvitation(
+    @Param('invitationId', new ParseUUIDPipe()) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.resendInvitation(
+      request.tenant!.dealershipId,
+      invitationId,
+      request.auth!.user.id,
+    );
+  }
+
+  @Patch('staff/invitations/:invitationId/revoke')
+  @RequirePermissions('invitations.manage')
+  revokeInvitation(
+    @Param('invitationId', new ParseUUIDPipe()) invitationId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.revokeInvitation(
+      request.tenant!.dealershipId,
+      invitationId,
+      request.auth!.user.id,
+    );
+  }
+
+  @Get('staff/:membershipId')
+  @RequirePermissions('staff.read')
+  getStaff(
+    @Param('membershipId', new ParseUUIDPipe()) membershipId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.getStaff(
+      request.tenant!.dealershipId,
+      membershipId,
+      staffBranchScope(request),
+    );
+  }
+
+  @Patch('staff/:membershipId')
+  @RequirePermissions('staff.manage')
+  updateStaff(
+    @Param('membershipId', new ParseUUIDPipe()) membershipId: string,
+    @Body(authBodyPipe(UpdateEmployeeDto)) body: UpdateEmployeeDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.updateStaffProfile(
+      request.tenant!.dealershipId,
+      membershipId,
+      body.availability,
+      request.auth!.user.id,
+      staffBranchScope(request),
+    );
+  }
+
+  @Patch('staff/:membershipId/activate')
+  @RequirePermissions('staff.manage')
+  activate(
+    @Param('membershipId', new ParseUUIDPipe()) membershipId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.staff.activateMembership(
+      request.tenant!.dealershipId,
+      membershipId,
+      request.auth!.user.id,
+    );
+  }
+
   @Patch('staff/:membershipId/deactivate')
   @RequirePermissions('staff.manage')
   async deactivate(
     @Param('membershipId', new ParseUUIDPipe()) membershipId: string,
     @Req() request: AuthenticatedRequest,
-  ): Promise<{ status: 'deactivated' }> {
-    await this.staff.deactivateMembership(
+  ) {
+    return this.staff.deactivateMembership(
       request.tenant!.dealershipId,
       membershipId,
       request.auth!.user.id,
     );
-    return { status: 'deactivated' };
   }
 
   @Put('staff/:membershipId/roles')

@@ -5,7 +5,14 @@ export interface AuthMembership {
   dealershipId: string;
   dealershipName: string;
   branchId: string | null;
-  roles: Array<{ id: string; key: string; name: string }>;
+  isPrimary: boolean;
+  permissions: string[];
+  roles: Array<{
+    id: string;
+    key: string;
+    name: string;
+    permissions: string[];
+  }>;
 }
 
 export interface AuthMeResponse {

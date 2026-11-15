@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { HealthDashboard } from '@/components/health-dashboard';
-import { LogoutButton } from '@/components/logout-button';
+import { DealershipDashboard } from '@/components/dealership-dashboard';
 import type { AuthMeResponse } from '@/lib/api/auth';
 
 export default async function Page() {
@@ -31,24 +30,5 @@ export default async function Page() {
     redirect('/access-denied');
   }
 
-  const displayName =
-    [session.user.firstName, session.user.lastName].filter(Boolean).join(' ') ||
-    session.user.email;
-
-  return (
-    <main className="page-shell">
-      <div className="page-card">
-        <header className="hero dashboard-hero">
-          <div>
-            <p className="eyebrow">AI Car Sales Assistant & CRM Platform</p>
-            <h1>Development Environment</h1>
-            <p className="signed-in">Signed in as {displayName}</p>
-          </div>
-          <LogoutButton csrfToken={session.csrfToken} />
-        </header>
-
-        <HealthDashboard />
-      </div>
-    </main>
-  );
+  return <DealershipDashboard session={session} />;
 }

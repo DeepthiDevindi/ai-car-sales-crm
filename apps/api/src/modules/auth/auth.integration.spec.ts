@@ -1,10 +1,13 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ValidationPipe, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ValidationPipe, UnauthorizedException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { BranchService } from '../branches/branch.service.js';
+import { DealershipService } from '../dealers/dealership.service.js';
+import type { BranchQueryDto } from '../branches/dto/branch.dto.js';
 import type { AuthenticatedRequest } from './auth.types.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
@@ -16,6 +19,10 @@ import { MfaService } from './services/mfa.service.js';
 import { PasswordService } from './services/password.service.js';
 import { StaffService } from './services/staff.service.js';
 import { TokenService } from './services/token.service.js';
+import {
+  BUILT_IN_DEALERSHIP_ROLES,
+  provisionBuiltInDealershipRoles,
+} from './services/dealership-role-catalog.js';
 
 const enabled = process.env.RUN_DB_INTEGRATION_TESTS === '1';
 const originalEnvironment = {
@@ -84,10 +91,12 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
   const dealershipId = randomUUID();
   const userId = randomUUID();
   const invitedEmail = `invited-${suffix}@example.test`;
+  const mfaTargetUserId = randomUUID();
+  const mfaTargetEmail = `mfa-target-${suffix}@example.test`;
   const membershipId = randomUUID();
-  const roleId = randomUUID();
-  let permissionId: string;
-  let createdPermission = false;
+  const mfaTargetMembershipId = randomUUID();
+  let roleId: string;
+  let adminRoleId: string;
   const email = `auth-${suffix}@example.test`;
   const initialPassword = 'initial-auth-test-password';
   const resetPassword = 'reset-auth-test-password';
@@ -98,6 +107,8 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
   let passwords: PasswordService;
   let tokens: TokenService;
   let staff: StaffService;
+  let branches: BranchService;
+  let dealerships: DealershipService;
 
   beforeAll(async () => {
     configureLocalServices();
@@ -109,11 +120,16 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
     tokens = new TokenService();
     auth = new AuthService(prisma, passwords, tokens, rateLimit, emailService, new MfaService());
     staff = new StaffService(prisma, tokens, emailService, passwords, rateLimit);
+    branches = new BranchService(prisma);
+    dealerships = new DealershipService(prisma);
 
     await prisma.$transaction(async (transaction) => {
       await transaction.dealership.create({
         data: { id: dealershipId, name: `Synthetic Auth ${suffix}`, slug: `auth-${suffix}` },
       });
+      const roles = await provisionBuiltInDealershipRoles(transaction, dealershipId);
+      roleId = roles.get('SALES_AGENT')!.id;
+      adminRoleId = roles.get('DEALER_ADMIN')!.id;
       await transaction.user.create({
         data: {
           id: userId,
@@ -122,32 +138,6 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
           status: 'ACTIVE',
         },
       });
-      await transaction.role.create({
-        data: {
-          id: roleId,
-          dealershipId,
-          scope: 'DEALERSHIP',
-          key: `AUTH_TEST_STAFF_${suffix}`,
-          name: 'Synthetic Auth Test Staff',
-        },
-      });
-      const privilegedPermission = await transaction.permission.findUnique({
-        where: { key: 'staff.assign_privileged_roles' },
-        select: { id: true },
-      });
-      if (privilegedPermission) {
-        permissionId = privilegedPermission.id;
-      } else {
-        permissionId = randomUUID();
-        createdPermission = true;
-        await transaction.permission.create({
-          data: {
-            id: permissionId,
-            key: 'staff.assign_privileged_roles',
-            name: 'Assign privileged staff roles',
-          },
-        });
-      }
       await transaction.dealershipMembership.create({
         data: {
           id: membershipId,
@@ -167,7 +157,7 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
     try {
       await prisma.$transaction(async (transaction) => {
         const fixtureUsers = await transaction.user.findMany({
-          where: { email: { in: [email, invitedEmail] } },
+          where: { email: { in: [email, invitedEmail, mfaTargetEmail] } },
           select: { id: true },
         });
         const fixtureUserIds = fixtureUsers.map(({ id }) => id);
@@ -176,14 +166,11 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
         });
         await transaction.employeeInvitation.deleteMany({ where: { dealershipId } });
         await transaction.membershipRole.deleteMany({ where: { dealershipId } });
-        await transaction.rolePermission.deleteMany({ where: { roleId } });
         await transaction.dealershipMembership.deleteMany({ where: { dealershipId } });
+        await transaction.branch.deleteMany({ where: { dealershipId } });
         await transaction.authToken.deleteMany({ where: { userId: { in: fixtureUserIds } } });
         await transaction.authSession.deleteMany({ where: { userId: { in: fixtureUserIds } } });
-        await transaction.role.deleteMany({ where: { id: roleId } });
-        if (createdPermission) {
-          await transaction.permission.deleteMany({ where: { id: permissionId } });
-        }
+        await transaction.role.deleteMany({ where: { dealershipId } });
         await transaction.user.deleteMany({ where: { id: { in: fixtureUserIds } } });
         await transaction.dealership.deleteMany({ where: { id: dealershipId } });
       });
@@ -346,7 +333,10 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
       {
         dealershipId,
         inviterMembershipId: membershipId,
-        permissions: ['staff.invite'],
+        permissions: [
+          ...BUILT_IN_DEALERSHIP_ROLES.find(({ key }) => key === 'DEALER_ADMIN')!
+            .permissionKeys,
+        ],
         email: invitedEmail.toUpperCase(),
         roleId,
       },
@@ -390,24 +380,87 @@ describe.skipIf(!enabled)('Authentication persistence (local PostgreSQL and Redi
     ).rejects.toMatchObject({ code: 'P2002' });
   });
 
+  it('updates dealership hours and manages audited tenant branches', async () => {
+    const openingHours = { monday: [{ start: '09:00', end: '17:00' }] };
+    await dealerships.updateCurrent(dealershipId, userId, { openingHours });
+    await expect(dealerships.getCurrent(dealershipId)).resolves.toMatchObject({
+      openingHours,
+    });
+
+    const branch = await branches.create(dealershipId, userId, {
+      name: 'Central',
+      code: 'central',
+      city: 'Colombo',
+    });
+    await expect(
+      branches.create(dealershipId, userId, {
+        name: 'Duplicate',
+        code: 'CENTRAL',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      branches.update(dealershipId, userId, branch.id, null, { city: 'Kandy' }),
+    ).resolves.toMatchObject({ city: 'Kandy' });
+    const result = await branches.list(dealershipId, null, {
+      page: 1,
+      pageSize: 25,
+    } satisfies BranchQueryDto);
+    expect(result.items).toContainEqual(
+      expect.objectContaining({ id: branch.id, city: 'Kandy' }),
+    );
+    await expect(
+      prisma!.auditLog.count({
+        where: {
+          dealershipId,
+          entityType: { in: ['Dealership', 'Branch'] },
+          userId,
+        },
+      }),
+    ).resolves.toBeGreaterThanOrEqual(3);
+  });
+
   it('requires MFA when a dealership role can assign privileged roles', async () => {
     await prisma!.$transaction(async (transaction) => {
-      await transaction.rolePermission.create({
-        data: { roleId, permissionId },
+      await transaction.user.create({
+        data: {
+          id: mfaTargetUserId,
+          email: mfaTargetEmail,
+          passwordHash: await passwords.hash('mfa-target-password'),
+          emailVerifiedAt: new Date(),
+          status: 'ACTIVE',
+        },
+      });
+      await transaction.dealershipMembership.create({
+        data: {
+          id: mfaTargetMembershipId,
+          dealershipId,
+          userId: mfaTargetUserId,
+          status: 'ACTIVE',
+        },
       });
     });
     await staff.assignRole(
       dealershipId,
-      membershipId,
-      roleId,
-      ['staff.assign_roles'],
+      mfaTargetMembershipId,
+      adminRoleId,
+      [
+        ...BUILT_IN_DEALERSHIP_ROLES.find(({ key }) => key === 'DEALER_ADMIN')!
+          .permissionKeys,
+      ],
       userId,
     );
 
-    const login = await auth.login(email, resetPassword, `127.0.0.1-${suffix}`);
+    const login = await auth.login(
+      mfaTargetEmail,
+      'mfa-target-password',
+      `127.0.0.1-${suffix}`,
+    );
     expect(login.stage).toBe('MFA_SETUP');
     const setup = await auth.setupMfa(login.rawToken);
-    const updatedUser = await prisma!.user.findUniqueOrThrow({ where: { id: userId } });
+    const updatedUser = await prisma!.user.findUniqueOrThrow({
+      where: { id: mfaTargetUserId },
+    });
     expect(updatedUser.mfaSecretEncrypted).not.toBe(setup.secret);
     expect(new MfaService().decrypt(updatedUser.mfaSecretEncrypted!)).toBe(setup.secret);
   }, 30_000);
